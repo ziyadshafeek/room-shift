@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Room Shifting Checklist</title>
+<style>
+  *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#fff;color:#111;padding:16px;max-width:680px;margin-inline:auto}
+  h1{font-size:22px;margin:4px 0 2px} p.sub{color:#555;margin:0 0 12px;font-size:14px}
+  #progress{height:12px;background:#eee;border-radius:6px;overflow:hidden;margin:10px 0 4px}
+  #bar{height:100%;width:0;background:#1a7f37;transition:width .2s}
+  #count{font-size:14px;color:#555;margin-bottom:16px}
+  h2{font-size:17px;margin:22px 0 6px;border-bottom:1px solid #ddd;padding-bottom:4px}
+  .tag{font-size:12px;color:#888;font-weight:400}
+  label.item{display:flex;gap:10px;align-items:flex-start;padding:9px 6px;border-bottom:1px solid #f0f0f0;cursor:pointer;font-size:16px}
+  label.item input{width:20px;height:20px;margin-top:1px;accent-color:#1a7f37;flex-shrink:0}
+  label.item.done span{color:#888;text-decoration:line-through}
+  .sub{margin-left:30px;font-size:15px;color:#444}
+  .del{margin-left:auto;background:none;border:none;color:#c00;font-size:18px;cursor:pointer;padding:0 4px}
+  .addrow{display:flex;gap:8px;margin:16px 0}
+  .addrow input[type=text]{flex:1;font-size:16px;padding:11px;border:1px solid #ccc;border-radius:10px}
+  .addrow select{font-size:15px;padding:10px;border:1px solid #ccc;border-radius:10px}
+  .addrow button{font-size:16px;padding:11px 18px;border-radius:10px;border:1px solid #111;background:#111;color:#fff;cursor:pointer}
+  .row{display:flex;gap:8px;margin:14px 0}
+  .row button{font-size:14px;padding:9px 14px;border-radius:10px;border:1px solid #111;background:#fff;color:#111;cursor:pointer}
+  .note{font-size:13px;color:#555;line-height:1.6;margin-top:18px}
+</style>
+</head>
+<body>
+<h1>📦 Room Shifting Checklist</h1>
+<p class="sub">Tick items as you pack them. Your progress is saved on this device.</p>
+
+<div id="progress"><div id="bar"></div></div>
+<div id="count"></div>
+
+<div id="list"></div>
+
+<h2>Add your own item</h2>
+<div class="addrow">
+  <input id="newItem" type="text" placeholder="e.g. Table lamp">
+  <select id="newCat"></select>
+  <button id="addBtn">Add</button>
+</div>
+
+<div class="row">
+  <button id="resetBtn">Reset all ticks</button>
+  <button id="clearCustomBtn">Remove my added items</button>
+</div>
+
+<p class="note">Tip: check under the bed, on top of the cupboard, behind the door and inside every drawer before you lock up — that's where things get left behind.<br>Heads-up: ticks save in this browser only — do the whole shift in the same browser/app you started in, or your ticks won't carry over.</p>
+
+<script>
+const SECTIONS = [
+  { id: 'books', title: '📚 Books', items: [
+    'Ophthalmology book', 'ENT book',
+    'Surgery book', 'Surgery record book (record only for surgery)',
+    'Medicine book', 'OBG book', 'Paediatrics book', 'Logbook',
+  ]},
+  { id: 'bags', title: '👜 Bags & clothes', items: [
+    'Bags under the bed', 'Dresses / clothes', 'Hangers',
+  ]},
+  { id: 'ids', title: '🪪 IDs & documents', items: [
+    'KUHS ID card', 'College ID card', 'Aadhar card',
+  ]},
+  { id: 'optional', title: '✨ Optional — add if you need them', optional: true, items: [
+    'Certificates & mark sheets folder', 'Hostel allotment letter', 'Fee receipts',
+    'PAN card', 'Driving licence', 'Passport-size photos', 'Bank passbook / ATM card',
+    'Phone + charger', 'Laptop + charger', 'Power bank', 'Earphones', 'Extension board',
+    'Stethoscope', 'Apron / lab coat', 'Notes & previous question papers', 'Stationery',
+    'Bedsheet, pillow & blanket', 'Towel & toiletries', 'Bucket & mug', 'Water bottle & tiffin',
+    'Medicines & first-aid kit', 'Umbrella', 'Room lock & keys', 'Wallet & cash', 'Watch',
+    'Shoes & slippers', 'Spectacles / contact-lens kit (if you wear them)',
+    'Old room key to hand back + new room key collected',
+    'Laundry bag', 'Kettle / mug heater', 'Mirror', 'Dustbin & cleaning supplies',
+  ]},
+];
+const KEY = 'room-shift-checklist-v1';
+let state = JSON.parse(localStorage.getItem(KEY) || '{"done":{},"custom":[]}');
+
+function allSections(){
+  const secs = JSON.parse(JSON.stringify(SECTIONS));
+  for (const c of state.custom) {
+    const s = secs.find(s => s.id === c.cat) || secs[secs.length - 1];
+    s.items.push(c.text);
+  }
+  return secs;
+}
+function itemKey(sec, text){ return sec + '::' + text; }
+
+function render(){
+  const secs = allSections();
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  let total = 0, done = 0;
+  for (const s of secs) {
+    const h = document.createElement('h2');
+    h.innerHTML = s.title + (s.optional ? ' <span class="tag">(optional)</span>' : '');
+    list.appendChild(h);
+    for (const text of s.items) {
+      total++;
+      const k = itemKey(s.id, text);
+      const isDone = !!state.done[k];
+      if (isDone) done++;
+      const lab = document.createElement('label');
+      lab.className = 'item' + (isDone ? ' done' : '');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = isDone;
+      cb.onchange = () => { state.done[k] = cb.checked; save(); render(); };
+      const sp = document.createElement('span'); sp.textContent = text;
+      lab.appendChild(cb); lab.appendChild(sp);
+      const custom = state.custom.find(c => c.cat === s.id && c.text === text);
+      if (custom) {
+        const d = document.createElement('button');
+        d.className = 'del'; d.textContent = '×'; d.title = 'Remove';
+        d.onclick = e => { e.preventDefault(); state.custom = state.custom.filter(c => c !== custom); delete state.done[k]; save(); render(); };
+        lab.appendChild(d);
+      }
+      list.appendChild(lab);
+    }
+  }
+  document.getElementById('bar').style.width = (total ? (100 * done / total) : 0) + '%';
+  document.getElementById('count').textContent = done + ' of ' + total + ' packed';
+  const sel = document.getElementById('newCat');
+  if (!sel.options.length) {
+    for (const s of secs) {
+      const o = document.createElement('option');
+      o.value = s.id; o.textContent = s.title.replace(/^[^\s]+\s/, '');
+      sel.appendChild(o);
+    }
+  }
+}
+function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+
+document.getElementById('addBtn').onclick = () => {
+  const inp = document.getElementById('newItem');
+  const text = inp.value.trim();
+  if (!text) return;
+  state.custom.push({ cat: document.getElementById('newCat').value, text });
+  inp.value = ''; save(); render(); inp.focus();
+};
+document.getElementById('newItem').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('addBtn').click();
+});
+document.getElementById('resetBtn').onclick = () => {
+  if (confirm('Untick everything?')) { state.done = {}; save(); render(); }
+};
+document.getElementById('clearCustomBtn').onclick = () => {
+  state.custom = []; save(); render();
+};
+render();
+</script>
+</body>
+</html>
